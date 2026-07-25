@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Payment Successful</title>
+  <style>
+    body { font-family: Arial; text-align: center; padding: 50px; background: #f0f9ff; }
+    .success-box { background: white; padding: 40px; border-radius: 15px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    h1 { color: #22c55e; }
+    .btn { display: inline-block; margin-top: 20px; padding: 12px 30px; background: #3b82f6; color: white; text-decoration: none; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="success-box">
+    <h1>✅ Payment Successful!</h1>
+    <p>Your subscription is now active.</p>
+    <p id="plan-details"></p>
+    <a href="index.html" class="btn">Start Using Pro</a>
+  </div>
+
+  <script>
+    // Mark user as paid - using CORRECT localStorage keys
+    const pending = JSON.parse(localStorage.getItem('pendingPayment'));
+    if (pending) {
+      document.getElementById('plan-details').innerHTML = 
+        '<strong>Plan:</strong> ' + pending.plan + '<br><strong>Amount:</strong> R' + pending.amount;
+
+      // Get session and update subscription
+      const session = JSON.parse(localStorage.getItem('invoice_auth_session'));
+      if (session) {
+        const subKey = 'invoice_sub_' + session.email;
+        const sub = JSON.parse(localStorage.getItem(subKey)) || {};
+
+        // Determine plan type and days
+        let days = 7;
+        if (pending.plan.includes('Month')) days = 30;
+        if (pending.plan.includes('Year')) days = 365;
+
+        sub.status = 'active';
+        sub.plan = pending.plan;
+        sub.paidDate = new Date().toISOString();
+        sub.endDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+        localStorage.setItem(subKey, JSON.stringify(sub));
+      }
+
+      localStorage.removeItem('pendingPayment');
+    }
+  </script>
+</body>
+</html>
