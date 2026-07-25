@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Generator Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #2563eb; --primary-dark: #1d4ed8; --accent: #10b981;
+            --danger: #ef4444; --warning: #f59e0b; --bg: #f8fafc;
+            --card: #ffffff; --text: #1e293b; --text-light: #64748b; --border: #e2e8f0;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+        .trial-banner { background: linear-gradient(90deg, var(--warning), #fbbf24); color: #1e293b; padding: 0.6rem 1rem; text-align: center; font-size: 0.9rem; font-weight: 500; }
+        .trial-banner.expired { background: linear-gradient(90deg, var(--danger), #dc2626); color: white; }
+        .trial-banner button { background: white; color: var(--primary); border: none; padding: 0.3rem 0.8rem; border-radius: 6px; font-weight: 600; cursor: pointer; margin-left: 0.5rem; }
+        .trial-banner.expired button { background: white; color: var(--danger); }
+        .auth-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; }
+        .auth-card { background: var(--card); border-radius: 20px; padding: 2.5rem; max-width: 400px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .auth-card h1 { text-align: center; font-size: 1.8rem; color: var(--primary); margin-bottom: 0.3rem; }
+        .auth-card .subtitle { text-align: center; color: var(--text-light); font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .auth-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: var(--bg); border-radius: 10px; padding: 4px; }
+        .auth-tab { flex: 1; padding: 0.6rem; border: none; border-radius: 8px; background: transparent; font-size: 0.9rem; font-weight: 500; cursor: pointer; color: var(--text-light); transition: all 0.2s; }
+        .auth-tab.active { background: var(--card); color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.35rem; color: var(--text); }
+        .form-group input { width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; transition: border-color 0.2s; }
+        .form-group input:focus { outline: none; border-color: var(--primary); }
+        .auth-btn { width: 100%; padding: 0.8rem; border: none; border-radius: 10px; background: var(--primary); color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-top: 0.5rem; }
+        .auth-btn:hover { background: var(--primary-dark); }
+        .divider { display: flex; align-items: center; gap: 1rem; margin: 1.25rem 0; color: var(--text-light); font-size: 0.85rem; }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .google-btn { display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 10px; background: white; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .google-btn:hover { background: var(--bg); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .google-icon { width: 20px; height: 20px; }
+        .auth-footer { text-align: center; margin-top: 1rem; font-size: 0.85rem; color: var(--text-light); }
+        .auth-footer a { color: var(--primary); cursor: pointer; font-weight: 500; }
+        .forgot-link { text-align: center; margin-top: 0.5rem; font-size: 0.85rem; }
+        .forgot-link a { color: var(--primary); cursor: pointer; font-weight: 500; }
+        .error-msg { color: var(--danger); font-size: 0.85rem; margin-top: 0.5rem; text-align: center; min-height: 1.2rem; }
+        .forgot-screen { min-height: 100vh; display: none; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; }
+        .forgot-screen.active { display: flex; }
+        .forgot-card { background: var(--card); border-radius: 20px; padding: 2.5rem; max-width: 400px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .forgot-card h2 { text-align: center; color: var(--primary); margin-bottom: 0.5rem; }
+        .forgot-card p { text-align: center; color: var(--text-light); font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .sub-screen { min-height: 100vh; display: none; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; }
+        .sub-screen.active { display: flex; }
+        .sub-card { background: var(--card); border-radius: 20px; padding: 2.5rem; max-width: 450px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center; }
+        .sub-card h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 0.5rem; }
+        .sub-card .trial-info { color: var(--text-light); font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .sub-card .expired-msg { color: var(--danger); font-weight: 600; margin-bottom: 1rem; }
+        .plan-grid { display: grid; gap: 1rem; margin-bottom: 1.5rem; }
+        .plan { border: 2px solid var(--border); border-radius: 12px; padding: 1.25rem; cursor: pointer; transition: all 0.2s; text-align: left; }
+        .plan:hover { border-color: var(--primary); }
+        .plan.selected { border-color: var(--primary); background: #eff6ff; }
+        .plan .plan-name { font-weight: 600; font-size: 1.1rem; color: var(--text); }
+        .plan .plan-price { font-size: 1.5rem; font-weight: 700; color: var(--primary); margin: 0.5rem 0; }
+        .plan .plan-period { font-size: 0.85rem; color: var(--text-light); }
+        .plan .plan-save { display: inline-block; background: var(--accent); color: white; font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; margin-left: 0.5rem; }
+        .pay-btn { width: 100%; padding: 0.9rem; border: none; border-radius: 10px; background: var(--primary); color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .pay-btn:hover { background: var(--primary-dark); }
+        .pay-btn:disabled { background: var(--border); color: var(--text-light); cursor: not-allowed; }
+        .sub-footer { margin-top: 1rem; font-size: 0.85rem; color: var(--text-light); }
+        .app-container { display: none; grid-template-columns: 260px 1fr; grid-template-rows: auto auto 1fr; min-height: 100vh; }
+        .app-container.active { display: grid; }
+        header { grid-column: 1 / -1; background: var(--card); padding: 0.75rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 0.5rem; }
+        header h1 { font-size: 1.3rem; color: var(--primary); }
+        .user-info { display: flex; align-items: center; gap: 0.75rem; }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; }
+        .user-info span { font-size: 0.85rem; color: var(--text-light); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .btn { padding: 0.55rem 1.1rem; border: none; border-radius: 8px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--border); }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-accent:hover { background: #059669; }
+        .btn-danger { background: var(--danger); color: white; padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+        .btn-ghost { background: transparent; color: var(--text-light); border: 1px solid var(--border); }
+        .btn-ghost:hover { background: var(--bg); }
+        .sidebar { background: var(--card); padding: 1.25rem; border-right: 1px solid var(--border); overflow-y: auto; }
+        .sidebar h3 { font-size: 0.8rem; text-transform: uppercase; color: var(--text-light); margin-bottom: 1rem; letter-spacing: 0.5px; }
+        .saved-invoice-item { padding: 0.7rem; border-radius: 8px; margin-bottom: 0.5rem; cursor: pointer; transition: all 0.2s; border: 1px solid var(--border); background: var(--card); position: relative; }
+        .saved-invoice-item:hover { background: var(--bg); border-color: var(--primary); }
+        .saved-invoice-item.active { border-color: var(--primary); background: #eff6ff; }
+        .saved-invoice-item .inv-num { font-weight: 600; color: var(--primary); font-size: 0.85rem; }
+        .saved-invoice-item .inv-client { font-size: 0.8rem; color: var(--text-light); margin-top: 2px; }
+        .saved-invoice-item .inv-date { font-size: 0.75rem; color: var(--text-light); margin-top: 2px; }
+        .delete-saved { position: absolute; top: 0.5rem; right: 0.5rem; color: var(--danger); font-size: 0.75rem; opacity: 0; transition: opacity 0.2s; cursor: pointer; background: white; border-radius: 4px; padding: 2px 5px; }
+        .saved-invoice-item:hover .delete-saved { opacity: 1; }
+        .invoice-editor { padding: 1.5rem; overflow-y: auto; }
+        section { background: var(--card); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        section h3 { font-size: 0.85rem; text-transform: uppercase; color: var(--text-light); margin-bottom: 0.75rem; letter-spacing: 0.5px; }
+        input, textarea, select { width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; font-family: inherit; transition: border-color 0.2s; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); }
+        textarea { resize: vertical; min-height: 70px; }
+        .invoice-header { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .company-info input, .company-info textarea { margin-bottom: 0.6rem; }
+        .logo-upload-wrapper { margin-top: 0.5rem; }
+        .logo-upload-wrapper input[type="file"] { font-size: 0.8rem; padding: 0.4rem; }
+        #logoPreview { max-width: 120px; max-height: 80px; margin-top: 0.5rem; border-radius: 6px; object-fit: contain; }
+        .invoice-meta { display: flex; flex-direction: column; gap: 0.6rem; }
+        .invoice-meta label { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; font-size: 0.9rem; }
+        .invoice-meta input, .invoice-meta select { width: auto; min-width: 140px; flex: 1; }
+        .client-info input, .client-info textarea { margin-bottom: 0.5rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+        th, td { padding: 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { font-weight: 600; color: var(--text-light); font-size: 0.8rem; text-transform: uppercase; }
+        td input { border: none; background: transparent; padding: 0.3rem; width: 100%; }
+        td input:focus { background: var(--bg); border-radius: 4px; }
+        td:nth-child(1) input, td:nth-child(2) input { text-align: right; }
+        td:nth-child(4) { text-align: right; font-weight: 500; font-size: 0.9rem; }
+        .totals { max-width: 350px; margin-left: auto; }
+        .total-row { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+        .total-row label { display: flex; align-items: center; gap: 0.5rem; }
+        .total-row input { width: 55px; text-align: right; }
+        .grand-total { font-size: 1.15rem; font-weight: 700; color: var(--primary); border-bottom: none; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 2px solid var(--primary); }
+        .empty-state { text-align: center; padding: 2rem; color: var(--text-light); }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: var(--primary); color: white; padding: 0.75rem 1.25rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideIn 0.3s ease; z-index: 1000; font-size: 0.9rem; }
+        @keyframes slideIn { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .locked-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .locked-card { background: white; border-radius: 16px; padding: 2rem; max-width: 400px; text-align: center; }
+        .locked-card h2 { color: var(--danger); margin-bottom: 0.5rem; }
+        .locked-card p { color: var(--text-light); margin-bottom: 1.5rem; }
+        .locked-card button { padding: 0.8rem 2rem; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+        @media (max-width: 768px) {
+            .app-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .invoice-header { grid-template-columns: 1fr; }
+            .actions { width: 100%; justify-content: flex-start; }
+            .totals { max-width: 100%; }
+            .auth-card, .sub-card { padding: 2rem 1.25rem; }
+            .plan-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- AUTH SCREEN -->
+    <div id="authScreen" class="auth-screen">
+        <div class="auth-card">
+            <h1>🧾 Invoice Generator</h1>
+            <p class="subtitle">Create professional invoices in seconds</p>
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Log In</button>
+                <button class="auth-tab" id="tabSignup" onclick="switchTab('signup')">Create Account</button>
+            </div>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="your@email.com" required></div>
+                <div class="form-group"><label>Password</label><input type="password" id="loginPassword" placeholder="Your password" required></div>
+                <div class="error-msg" id="loginError"></div>
+                <button type="submit" class="auth-btn">Log In</button>
+                <div class="forgot-link" style="margin-top:0.75rem">
+                    <a onclick="showForgotScreen()">Forgot Password?</a>
+                </div>
+            </form>
+            <div class="forgot-link"></div>
+            <form id="signupForm" onsubmit="handleSignup(event)" style="display:none">
+                <div class="form-group"><label>Full Name</label><input type="text" id="signupName" placeholder="Your name" required></div>
+                <div class="form-group"><label>Email</label><input type="email" id="signupEmail" placeholder="your@email.com" required></div>
+                <div class="form-group"><label>Password</label><input type="password" id="signupPassword" placeholder="Min 6 characters" minlength="6" required></div>
+                <div class="form-group"><label>Confirm Password</label><input type="password" id="signupConfirm" placeholder="Repeat password" required></div>
+                <div class="error-msg" id="signupError"></div>
+                <button type="submit" class="auth-btn">Create Account</button>
+            </form>
+            <div class="divider">or</div>
+            <button class="google-btn" onclick="handleGoogleSignIn()">
+                <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                Sign in with Google
+            </button>
+            <div class="auth-footer" id="authFooter">Don't have an account? <a onclick="switchTab('signup')">Create one</a></div>
+        </div>
+    </div>
+
+    <!-- FORGOT PASSWORD SCREEN -->
+    <div id="forgotScreen" class="forgot-screen">
+        <div class="forgot-card">
+            <h2>🔐 Reset Password</h2>
+            <p>Enter your email and we'll send you a temporary password</p>
+            <div class="form-group"><input type="email" id="reset-email" placeholder="your@email.com" required></div>
+            <div class="error-msg" id="reset-msg"></div>
+            <button onclick="resetPassword()" class="auth-btn">Send Reset Email</button>
+            <div class="auth-footer" style="margin-top:1rem"><a onclick="showAuthScreen()">Back to Login</a></div>
+        </div>
+    </div>
+
+    <!-- SUBSCRIPTION SCREEN -->
+    <div id="subScreen" class="sub-screen">
+        <div class="sub-card">
+            <h1 id="subTitle">⏰ Trial Expired</h1>
+            <p class="expired-msg" id="subExpiredMsg">Your 7-day free trial has ended</p>
+            <p class="trial-info">Choose a plan to continue using Invoice Generator Pro</p>
+            <div class="plan-grid">
+                <div class="plan" onclick="selectPlan('week')" id="planWeek">
+                    <div class="plan-name">Weekly</div>
+                    <div class="plan-price">R 29<span class="plan-period"> / week</span></div>
+                </div>
+                <div class="plan selected" onclick="selectPlan('month')" id="planMonth">
+                    <div class="plan-name">Monthly <span class="plan-save">POPULAR</span></div>
+                    <div class="plan-price">R 99<span class="plan-period"> / month</span></div>
+                </div>
+                <div class="plan" onclick="selectPlan('year')" id="planYear">
+                    <div class="plan-name">Yearly <span class="plan-save">SAVE 40%</span></div>
+                    <div class="plan-price">R 699<span class="plan-period"> / year</span></div>
+                </div>
+            </div>
+            <form action="https://sandbox.payfast.co.za/eng/process" method="POST" id="payfast-form">
+                <input type="hidden" name="merchant_id" value="10052153">
+                <input type="hidden" name="merchant_key" value="gl80or63idhrn">
+                <input type="hidden" name="return_url" value="https://isaacjace116.github.io/invoice-generator-pro-/Payment-success.html">
+                <input type="hidden" name="cancel_url" value="https://isaacjace116.github.io/invoice-generator-pro-/Payment-cancelled.html">
+                <input type="hidden" name="notify_url" value="https://isaacjace116.github.io/invoice-generator-pro-/notify.html">
+                <input type="hidden" name="amount" id="pf-amount" value="29.00">
+                <input type="hidden" name="item_name" id="pf-item" value="Weekly Subscription">
+                <input type="hidden" name="email_address" id="pf-email" value="">
+                <input type="hidden" name="m_payment_id" id="pf-ref" value="">
+                <button type="submit" class="pay-btn" id="payBtn">Subscribe Now</button>
+            </form>
+            <p class="sub-footer">Secure payment via PayFast • Cancel anytime</p>
+        </div>
+    </div>
+
+    <!-- APP SCREEN -->
+    <div id="appScreen" class="app-container">
+        <div class="trial-banner" id="trialBanner" style="display:none">
+            <span id="trialText"></span>
+            <button onclick="goToSubscribe()">Upgrade</button>
+        </div>
+        <header>
+            <h1>🧾 Invoice Generator Pro</h1>
+            <div style="display:flex;align-items:center;gap:1rem">
+                <div class="user-info" id="userInfo">
+                    <div class="user-avatar" id="userAvatar">?</div>
+                    <span id="userNameDisplay">User</span>
+                </div>
+                <div class="actions">
+                    <button id="newInvoiceBtn" class="btn btn-secondary">New Invoice</button>
+                    <button id="saveBtn" class="btn btn-primary">💾 Save</button>
+                    <button id="exportPdfBtn" class="btn btn-accent">📄 Export PDF</button>
+                    <button id="logoutBtn" class="btn btn-ghost">Logout</button>
+                </div>
+            </div>
+        </header>
+        <aside class="sidebar">
+            <h3>📂 Saved Invoices</h3>
+            <div id="savedInvoicesList"><div class="empty-state">No saved invoices yet</div></div>
+        </aside>
+        <main class="invoice-editor">
+            <section class="invoice-header">
+                <div class="company-info">
+                    <input type="text" id="companyName" placeholder="Your Company Name" value="Your Company">
+                    <textarea id="companyDetails" placeholder="Address, Phone, Email">123 Business Street
+City, Country
+Phone: +27 123 456 7890</textarea>
+                    <div class="logo-upload-wrapper">
+                        <input type="file" id="logoUpload" accept="image/*">
+                        <img id="logoPreview" style="display: none;">
+                    </div>
+                </div>
+                <div class="invoice-meta">
+                    <label>Invoice # <input type="text" id="invoiceNumber" value="INV-001"></label>
+                    <label>Date <input type="date" id="invoiceDate"></label>
+                    <label>Due Date <input type="date" id="dueDate"></label>
+                    <label>Currency
+                        <select id="currency">
+                            <option value="R">R (ZAR)</option>
+                            <option value="$">$ (USD)</option>
+                            <option value="€">€ (EUR)</option>
+                            <option value="£">£ (GBP)</option>
+                        </select>
+                    </label>
+                </div>
+            </section>
+            <section class="client-info">
+                <h3>Bill To</h3>
+                <input type="text" id="clientName" placeholder="Client Name">
+                <textarea id="clientDetails" placeholder="Client Address"></textarea>
+            </section>
+            <section class="line-items">
+                <h3>Items</h3>
+                <table id="itemsTable">
+                    <thead><tr><th style="width:110px">Price</th><th style="width:70px">Qty</th><th>Description</th><th style="width:100px">Total</th><th style="width:40px"></th></tr></thead>
+                    <tbody id="itemsBody"></tbody>
+                </table>
+                <button id="addItemBtn" class="btn btn-secondary" style="margin-top:0.75rem">+ Add Item</button>
+            </section>
+            <section class="totals">
+                <div class="total-row"><span>Subtotal</span><span id="subtotal">R 0.00</span></div>
+                <div class="total-row"><label>Tax (%) <input type="number" id="taxRate" value="15" min="0" max="100"></label><span id="taxAmount">R 0.00</span></div>
+                <div class="total-row grand-total"><span>Total</span><span id="grandTotal">R 0.00</span></div>
+            </section>
+            <section class="notes">
+                <h3>Notes / Terms</h3>
+                <textarea id="notes" placeholder="Payment terms, bank details, thank you note...">Payment due within 30 days.
+Bank: FNB
+Account: 1234567890</textarea>
+            </section>
+        </main>
+    </div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// EMAILJS CONFIG - REPLACE WITH YOUR REAL VALUES
+// ═══════════════════════════════════════════════════════════════
+const EMAILJS_PUBLIC_KEY = "TVuMan1ZT4gimSk4F";
+const EMAILJS_SERVICE_ID = "service_z3ebwll";
+const EMAILJS_TEMPLATE_ID = "template_pvzsfup";
+emailjs.init(EMAILJS_PUBLIC_KEY);
+
+// ═══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+const TRIAL_DAYS = 7;
+const PLANS = {
+    week: { price: 29, period: 'week', days: 7, name: 'Weekly Subscription' },
+    month: { price: 99, period: 'month', days: 30, name: 'Monthly Subscription' },
+    year: { price: 699, period: 'year', days: 365, name: 'Yearly Subscription' }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// USER AUTHENTICATION SYSTEM
+// ═══════════════════════════════════════════════════════════════
+const AUTH_KEY = 'invoice_auth_users';
+const SESSION_KEY = 'invoice_auth_session';
+const GOOGLE_USER_KEY = 'invoice_google_user';
+
+function getUsers() {
+    const data = localStorage.getItem(AUTH_KEY);
+    return data ? JSON.parse(data) : {};
+}
+function saveUsers(users) {
+    localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+}
+function getSession() {
+    const data = localStorage.getItem(SESSION_KEY);
+    return data ? JSON.parse(data) : null;
+}
+function saveSession(user) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+        email: user.email, name: user.name, type: user.type || 'email',
+        loginTime: new Date().toISOString()
+    }));
+}
+function clearSession() {
+    localStorage.removeItem(SESSION_KEY);
+}
+function isLoggedIn() {
+    return getSession() !== null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SUBSCRIPTION SYSTEM
+// ═══════════════════════════════════════════════════════════════
+function getSubKey() {
+    const session = getSession();
+    return session ? 'invoice_sub_' + session.email : null;
+}
+function getSubscription() {
+    const key = getSubKey();
+    if (!key) return null;
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : null;
+}
+function saveSubscription(sub) {
+    const key = getSubKey();
+    if (!key) return;
+    localStorage.setItem(key, JSON.stringify(sub));
+}
+function startTrial() {
+    const sub = {
+        status: 'trial',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+        plan: null, paidDate: null
+    };
+    saveSubscription(sub);
+    return sub;
+}
+function activatePlan(planType) {
+    const plan = PLANS[planType];
+    const sub = {
+        status: 'active',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + plan.days * 24 * 60 * 60 * 1000).toISOString(),
+        plan: planType, paidDate: new Date().toISOString()
+    };
+    saveSubscription(sub);
+    return sub;
+}
+function checkSubscription() {
+    const sub = getSubscription();
+    if (!sub) return startTrial();
+    const now = new Date();
+    const end = new Date(sub.endDate);
+    if (now > end) {
+        if (sub.status === 'trial') sub.status = 'trial_expired';
+        else sub.status = 'expired';
+        saveSubscription(sub);
+    }
+    return sub;
+}
+function getTrialDaysLeft() {
+    const sub = getSubscription();
+    if (!sub || sub.status !== 'trial') return 0;
+    const end = new Date(sub.endDate);
+    const now = new Date();
+    return Math.max(0, Math.ceil((end - now) / (24 * 60 * 60 * 1000)));
+}
+function isSubActive() {
+    const sub = getSubscription();
+    if (!sub) return false;
+    const now = new Date();
+    const end = new Date(sub.endDate);
+    return now <= end && (sub.status === 'trial' || sub.status === 'active');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCREEN MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+const authScreen = document.getElementById('authScreen');
+const forgotScreen = document.getElementById('forgotScreen');
+const subScreen = document.getElementById('subScreen');
+const appScreen = document.getElementById('appScreen');
+
+function showAuthScreen() {
+    authScreen.style.display = 'flex';
+    forgotScreen.classList.remove('active');
+    subScreen.classList.remove('active');
+    appScreen.classList.remove('active');
+}
+function showForgotScreen() {
+    authScreen.style.display = 'none';
+    forgotScreen.classList.add('active');
+    subScreen.classList.remove('active');
+    appScreen.classList.remove('active');
+}
+function showSubScreen() {
+    authScreen.style.display = 'none';
+    forgotScreen.classList.remove('active');
+    subScreen.classList.add('active');
+    appScreen.classList.remove('active');
+    const session = getSession();
+    if (session) document.getElementById('pf-email').value = session.email;
+    document.getElementById('pf-ref').value = generateRef();
+}
+function showAppScreen() {
+    authScreen.style.display = 'none';
+    forgotScreen.classList.remove('active');
+    subScreen.classList.remove('active');
+    appScreen.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH UI
+// ═══════════════════════════════════════════════════════════════
+function switchTab(tab) {
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+    const tabLogin = document.getElementById('tabLogin');
+    const tabSignup = document.getElementById('tabSignup');
+    const authFooter = document.getElementById('authFooter');
+    if (tab === 'login') {
+        loginForm.style.display = 'block'; signupForm.style.display = 'none';
+        tabLogin.classList.add('active'); tabSignup.classList.remove('active');
+        authFooter.innerHTML = "Don't have an account? <a onclick=\"switchTab('signup')\">Create one</a>";
+    } else {
+        loginForm.style.display = 'none'; signupForm.style.display = 'block';
+        tabLogin.classList.remove('active'); tabSignup.classList.add('active');
+        authFooter.innerHTML = "Already have an account? <a onclick=\"switchTab('login')\">Log in</a>";
+    }
+    document.getElementById('loginError').textContent = '';
+    document.getElementById('signupError').textContent = '';
+}
+
+function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+    const password = document.getElementById('loginPassword').value;
+    const errorEl = document.getElementById('loginError');
+    const users = getUsers();
+    if (!users[email]) { errorEl.textContent = 'Account not found. Create one first.'; return; }
+    if (users[email].password !== password) { errorEl.textContent = 'Wrong password. Try again.'; return; }
+    if (users[email].tempPassword) {
+        saveSession(users[email]);
+        showToast('Please change your temporary password');
+        window.location.href = 'Change-password.html';
+        return;
+    }
+    saveSession(users[email]);
+    afterLogin();
+}
+
+function handleSignup(e) {
+    e.preventDefault();
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim().toLowerCase();
+    const password = document.getElementById('signupPassword').value;
+    const confirm = document.getElementById('signupConfirm').value;
+    const errorEl = document.getElementById('signupError');
+    if (password !== confirm) { errorEl.textContent = 'Passwords do not match.'; return; }
+    if (password.length < 6) { errorEl.textContent = 'Password must be at least 6 characters.'; return; }
+    const users = getUsers();
+    if (users[email]) { errorEl.textContent = 'Account already exists. Log in instead.'; return; }
+    users[email] = { email: email, name: name, password: password, type: 'email', createdAt: new Date().toISOString() };
+    saveUsers(users);
+    saveSession(users[email]);
+    showToast('Account created! 🎉');
+    afterLogin();
+}
+
+function handleGoogleSignIn() {
+    let googleUser = localStorage.getItem(GOOGLE_USER_KEY);
+    let email, name;
+    if (googleUser) {
+        const parsed = JSON.parse(googleUser);
+        email = parsed.email; name = parsed.name;
+    } else {
+        email = 'google_user_' + Math.random().toString(36).substr(2, 6) + '@gmail.com';
+        name = 'Google User';
+        localStorage.setItem(GOOGLE_USER_KEY, JSON.stringify({ email, name }));
+    }
+    const users = getUsers();
+    if (!users[email]) {
+        users[email] = { email: email, name: name, password: null, type: 'google', createdAt: new Date().toISOString() };
+        saveUsers(users);
+    }
+    saveSession(users[email]);
+    showToast('Signed in with Google! 🔵');
+    afterLogin();
+}
+
+function afterLogin() {
+    const sub = checkSubscription();
+    if (sub.status === 'trial_expired' || sub.status === 'expired') showSubScreen();
+    else enterApp();
+}
+
+function goToSubscribe() {
+    showSubScreen();
+}
+
+let selectedPlan = 'month';
+function selectPlan(plan) {
+    selectedPlan = plan;
+    document.querySelectorAll('.plan').forEach(p => p.classList.remove('selected'));
+    document.getElementById('plan' + plan.charAt(0).toUpperCase() + plan.slice(1)).classList.add('selected');
+    const planData = PLANS[plan];
+    document.getElementById('pf-amount').value = planData.price.toFixed(2);
+    document.getElementById('pf-item').value = planData.name;
+}
+
+function generateRef() {
+    return 'INV-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase();
+}
+
+document.getElementById('payfast-form').addEventListener('submit', function() {
+    const plan = PLANS[selectedPlan];
+    const ref = document.getElementById('pf-ref').value;
+    localStorage.setItem('pendingPayment', JSON.stringify({
+        plan: plan.name, amount: plan.price, reference: ref, date: new Date().toISOString()
+    }));
+});
+
+function enterApp() {
+    showAppScreen();
+    const session = getSession();
+    if (session) {
+        document.getElementById('userNameDisplay').textContent = session.name || session.email;
+        document.getElementById('userAvatar').textContent = (session.name || session.email).charAt(0).toUpperCase();
+    }
+    updateTrialBanner();
+    initApp();
+}
+
+function updateTrialBanner() {
+    const sub = getSubscription();
+    const banner = document.getElementById('trialBanner');
+    const text = document.getElementById('trialText');
+    if (!sub) return;
+    if (sub.status === 'trial') {
+        const daysLeft = getTrialDaysLeft();
+        banner.style.display = 'block'; banner.className = 'trial-banner';
+        text.textContent = '🎁 ' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + ' left in free trial';
+    } else if (sub.status === 'active') {
+        banner.style.display = 'none';
+    } else {
+        banner.style.display = 'block'; banner.className = 'trial-banner expired';
+        text.textContent = '⏰ Your subscription has expired';
+    }
+}
+
+function logout() {
+    clearSession();
+    showAuthScreen();
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginError').textContent = '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FORGOT PASSWORD / EMAILJS
+// ═══════════════════════════════════════════════════════════════
+function generateTempPassword() {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let pass = '';
+    for (let i = 0; i < 10; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    return pass;
+}
+
+function resetPassword() {
+    const email = document.getElementById('reset-email').value.trim().toLowerCase();
+    const msgEl = document.getElementById('reset-msg');
+    if (!email) { msgEl.innerHTML = '<span style="color:red">Please enter your email</span>'; return; }
+    const users = getUsers();
+    const user = users[email];
+    if (!user) { msgEl.innerHTML = '<span style="color:red">Email not found</span>'; return; }
+    const tempPass = generateTempPassword();
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_name: user.name || email, to_email: email, new_password: tempPass
+    }).then(function(response) {
+        users[email].password = tempPass;
+        users[email].tempPassword = true;
+        saveUsers(users);
+        msgEl.innerHTML = '<span style="color:green">New password sent to your email!</span>';
+        document.getElementById('reset-email').value = '';
+    }, function(error) {
+        msgEl.innerHTML = '<span style="color:red">Failed to send email. Try again.</span>';
+        console.log(error);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STORAGE (per-user)
+// ═══════════════════════════════════════════════════════════════
+function getStorageKey() {
+    const session = getSession();
+    return session ? 'invoice_' + session.email : 'invoice_guest';
+}
+
+const Storage = {
+    save(invoice) {
+        const key = getStorageKey();
+        const invoices = this.getAll();
+        const index = invoices.findIndex(inv => inv.id === invoice.id);
+        if (index >= 0) {
+            invoices[index] = { ...invoice, updatedAt: new Date().toISOString() };
+        } else {
+            invoice.id = invoice.id || 'inv_' + Date.now();
+            invoice.createdAt = new Date().toISOString();
+            invoice.updatedAt = invoice.createdAt;
+            invoices.push(invoice);
+        }
+        localStorage.setItem(key, JSON.stringify(invoices));
+        return invoice;
+    },
+    getAll() {
+        const key = getStorageKey();
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : [];
+    },
+    getById(id) {
+        return this.getAll().find(inv => inv.id === id);
+    },
+    delete(id) {
+        const key = getStorageKey();
+        const invoices = this.getAll().filter(inv => inv.id !== id);
+        localStorage.setItem(key, JSON.stringify(invoices));
+    },
+    generateInvoiceNumber() {
+        const invoices = this.getAll();
+        const count = invoices.length + 1;
+        return 'INV-' + String(count).padStart(3, '0');
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════════════════════
+let currentInvoice = {
+    id: null, companyName: '', companyDetails: '', logo: '', invoiceNumber: '',
+    invoiceDate: '', dueDate: '', currency: 'R', clientName: '', clientDetails: '',
+    items: [], taxRate: 15, notes: ''
+};
+let appInitialized = false;
+
+const els = {
+    companyName: document.getElementById('companyName'),
+    companyDetails: document.getElementById('companyDetails'),
+    logoUpload: document.getElementById('logoUpload'),
+    logoPreview: document.getElementById('logoPreview'),
+    invoiceNumber: document.getElementById('invoiceNumber'),
+    invoiceDate: document.getElementById('invoiceDate'),
+    dueDate: document.getElementById('dueDate'),
+    currency: document.getElementById('currency'),
+    clientName: document.getElementById('clientName'),
+    clientDetails: document.getElementById('clientDetails'),
+    itemsBody: document.getElementById('itemsBody'),
+    addItemBtn: document.getElementById('addItemBtn'),
+    subtotal: document.getElementById('subtotal'),
+    taxRate: document.getElementById('taxRate'),
+    taxAmount: document.getElementById('taxAmount'),
+    grandTotal: document.getElementById('grandTotal'),
+    notes: document.getElementById('notes'),
+    saveBtn: document.getElementById('saveBtn'),
+    exportPdfBtn: document.getElementById('exportPdfBtn'),
+    newInvoiceBtn: document.getElementById('newInvoiceBtn'),
+    savedInvoicesList: document.getElementById('savedInvoicesList')
+};
+
+// ═══════════════════════════════════════════════════════════════
+// INIT APP
+// ═══════════════════════════════════════════════════════════════
+function initApp() {
+    if (appInitialized) { createNewInvoice(); return; }
+    appInitialized = true;
+    const today = new Date().toISOString().split('T')[0];
+    els.invoiceDate.value = today;
+    const due = new Date(); due.setDate(due.getDate() + 30);
+    els.dueDate.value = due.toISOString().split('T')[0];
+    els.invoiceNumber.value = Storage.generateInvoiceNumber();
+    addItem();
+    renderSavedInvoices();
+    els.addItemBtn.addEventListener('click', () => addItem());
+    els.saveBtn.addEventListener('click', saveInvoice);
+    els.exportPdfBtn.addEventListener('click', exportToPdf);
+    els.newInvoiceBtn.addEventListener('click', createNewInvoice);
+    els.logoUpload.addEventListener('change', handleLogoUpload);
+    els.taxRate.addEventListener('input', calculateTotals);
+    els.currency.addEventListener('change', calculateTotals);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ITEMS
+// ═══════════════════════════════════════════════════════════════
+function addItem(price = '', qty = 1, description = '') {
+    const row = document.createElement('tr');
+    row.innerHTML = '<td><input type="number" class="item-price" value="' + price + '" min="0" step="0.01" placeholder="0.00"></td><td><input type="number" class="item-qty" value="' + qty + '" min="1" step="1"></td><td><input type="text" class="item-desc" placeholder="Item description" value="' + escapeHtml(description) + '"></td><td class="item-total">R 0.00</td><td><button class="btn btn-danger" onclick="removeItem(this)">✕</button></td>';
+    els.itemsBody.appendChild(row);
+    const inputs = row.querySelectorAll('input');
+    inputs.forEach(input => {
+        input.addEventListener('input', () => { calculateItemTotal(row); calculateTotals(); });
+    });
+    calculateItemTotal(row);
+    calculateTotals();
+}
+
+function removeItem(btn) {
+    btn.closest('tr').remove();
+    calculateTotals();
+}
+
+function calculateItemTotal(row) {
+    const price = parseFloat(row.querySelector('.item-price').value) || 0;
+    const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+    const total = price * qty;
+    const currency = els.currency.value;
+    row.querySelector('.item-total').textContent = currency + ' ' + total.toFixed(2);
+}
+
+function calculateTotals() {
+    let subtotal = 0;
+    document.querySelectorAll('.item-total').forEach(el => {
+        const text = el.textContent;
+        const match = text.match(/[\d,.]+$/);
+        const val = match ? parseFloat(match[0].replace(/,/g, '')) : 0;
+        subtotal += val;
+    });
+    const taxRate = parseFloat(els.taxRate.value) || 0;
+    const taxAmount = subtotal * (taxRate / 100);
+    const grandTotal = subtotal + taxAmount;
+    const currency = els.currency.value;
+    els.subtotal.textContent = currency + ' ' + subtotal.toFixed(2);
+    els.taxAmount.textContent = currency + ' ' + taxAmount.toFixed(2);
+    els.grandTotal.textContent = currency + ' ' + grandTotal.toFixed(2);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOGO
+// ═══════════════════════════════════════════════════════════════
+function handleLogoUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        els.logoPreview.src = e.target.result;
+        els.logoPreview.style.display = 'block';
+        currentInvoice.logo = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COLLECT DATA
+// ═══════════════════════════════════════════════════════════════
+function collectInvoiceData() {
+    const items = [];
+    document.querySelectorAll('#itemsBody tr').forEach(row => {
+        items.push({
+            price: parseFloat(row.querySelector('.item-price').value) || 0,
+            qty: parseFloat(row.querySelector('.item-qty').value) || 0,
+            description: row.querySelector('.item-desc').value
+        });
+    });
+    return {
+        id: currentInvoice.id, companyName: els.companyName.value,
+        companyDetails: els.companyDetails.value, logo: currentInvoice.logo,
+        invoiceNumber: els.invoiceNumber.value, invoiceDate: els.invoiceDate.value,
+        dueDate: els.dueDate.value, currency: els.currency.value,
+        clientName: els.clientName.value, clientDetails: els.clientDetails.value,
+        items: items, taxRate: parseFloat(els.taxRate.value) || 0, notes: els.notes.value
+    };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SAVE
+// ═══════════════════════════════════════════════════════════════
+let isSaving = false;
+function saveInvoice() {
+    if (isSaving) return;
+    isSaving = true;
+    const data = collectInvoiceData();
+    const saved = Storage.save(data);
+    currentInvoice.id = saved.id;
+    showToast('Invoice saved! 💾');
+    renderSavedInvoices();
+    setTimeout(() => { isSaving = false; }, 500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOAD INVOICE
+// ═══════════════════════════════════════════════════════════════
+function loadInvoice(id) {
+    const invoice = Storage.getById(id);
+    if (!invoice) return;
+    currentInvoice = { ...invoice };
+    els.companyName.value = invoice.companyName || '';
+    els.companyDetails.value = invoice.companyDetails || '';
+    els.invoiceNumber.value = invoice.invoiceNumber || '';
+    els.invoiceDate.value = invoice.invoiceDate || '';
+    els.dueDate.value = invoice.dueDate || '';
+    els.currency.value = invoice.currency || 'R';
+    els.clientName.value = invoice.clientName || '';
+    els.clientDetails.value = invoice.clientDetails || '';
+    els.taxRate.value = invoice.taxRate || 15;
+    els.notes.value = invoice.notes || '';
+    if (invoice.logo) {
+        els.logoPreview.src = invoice.logo;
+        els.logoPreview.style.display = 'block';
+        currentInvoice.logo = invoice.logo;
+    } else {
+        els.logoPreview.src = '';
+        els.logoPreview.style.display = 'none';
+        els.logoUpload.value = '';
+        currentInvoice.logo = '';
+    }
+    els.itemsBody.innerHTML = '';
+    if (invoice.items && invoice.items.length > 0) {
+        invoice.items.forEach(item => addItem(item.price, item.qty, item.description));
+    } else {
+        addItem();
+    }
+    calculateTotals();
+    renderSavedInvoices();
+}
+
+function deleteInvoice(e, id) {
+    e.stopPropagation();
+    if (!confirm('Delete this invoice?')) return;
+    Storage.delete(id);
+    if (currentInvoice.id === id) createNewInvoice();
+    else renderSavedInvoices();
+}
+
+function createNewInvoice() {
+    currentInvoice = { id: null, items: [], logo: '' };
+    document.querySelectorAll('input, textarea').forEach(el => { if (el.id !== 'logoUpload') el.value = ''; });
+    els.itemsBody.innerHTML = '';
+    els.logoPreview.src = ''; els.logoPreview.style.display = 'none'; els.logoUpload.value = '';
+    const today = new Date().toISOString().split('T')[0];
+    els.invoiceDate.value = today;
+    const due = new Date(); due.setDate(due.getDate() + 30);
+    els.dueDate.value = due.toISOString().split('T')[0];
+    els.invoiceNumber.value = Storage.generateInvoiceNumber();
+    els.taxRate.value = 15; els.currency.value = 'R';
+    els.companyName.value = 'Your Company';
+    els.companyDetails.value = '123 Business Street\nCity, Country\nPhone: +27 123 456 7890';
+    els.notes.value = 'Payment due within 30 days.\nBank: FNB\nAccount: 1234567890';
+    addItem(); calculateTotals(); renderSavedInvoices();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════════════════════════
+function renderSavedInvoices() {
+    const invoices = Storage.getAll();
+    els.savedInvoicesList.innerHTML = '';
+    if (invoices.length === 0) {
+        els.savedInvoicesList.innerHTML = '<div class="empty-state">No saved invoices yet</div>';
+        return;
+    }
+    invoices.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    invoices.forEach(inv => {
+        const div = document.createElement('div');
+        div.className = 'saved-invoice-item' + (inv.id === currentInvoice.id ? ' active' : '');
+        div.innerHTML = '<span class="delete-saved" onclick="deleteInvoice(event, \'' + inv.id + '\')">🗑</span><div class="inv-num">' + (inv.id === currentInvoice.id ? '● ' : '') + inv.invoiceNumber + '</div><div class="inv-client">' + (inv.clientName || 'No client') + '</div><div class="inv-date">' + formatDate(inv.invoiceDate) + ' • ' + inv.currency + ' ' + calculateInvoiceTotal(inv).toFixed(2) + '</div>';
+        div.addEventListener('click', () => loadInvoice(inv.id));
+        els.savedInvoicesList.appendChild(div);
+    });
+}
+
+function calculateInvoiceTotal(inv) {
+    const sub = inv.items.reduce((sum, item) => sum + (item.qty * item.price), 0);
+    return sub + (sub * (inv.taxRate / 100));
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PDF EXPORT
+// ═══════════════════════════════════════════════════════════════
+let isExporting = false;
+async function exportToPdf() {
+    if (isExporting) return;
+    isExporting = true;
+    try {
+        const { jsPDF } = window.jspdf;
+        const data = collectInvoiceData();
+        const currency = data.currency;
+        const doc = new jsPDF();
+        doc.setFontSize(22); doc.setTextColor(37, 99, 235); doc.text('INVOICE', 20, 25);
+        doc.setFontSize(10); doc.setTextColor(100); doc.text('# ' + data.invoiceNumber, 20, 32);
+        doc.setFontSize(10); doc.setTextColor(30);
+        const companyLines = data.companyDetails.split('\n');
+        let y = 25;
+        companyLines.forEach(line => { doc.text(line, 190, y, { align: 'right' }); y += 5; });
+        if (data.logo) { try { doc.addImage(data.logo, 'JPEG', 160, 12, 30, 25); } catch (e) {} }
+        y = 50; doc.setFontSize(10); doc.text('Invoice Date: ' + formatDate(data.invoiceDate), 20, y);
+        doc.text('Due Date: ' + formatDate(data.dueDate), 20, y + 6);
+        y = 68; doc.setFontSize(11); doc.setTextColor(37, 99, 235); doc.text('BILL TO', 20, y);
+        doc.setFontSize(10); doc.setTextColor(30); doc.text(data.clientName, 20, y + 7);
+        const clientLines = data.clientDetails.split('\n');
+        clientLines.forEach((line, i) => { doc.text(line, 20, y + 14 + (i * 5)); });
+        const tableData = data.items.map(item => [
+            currency + ' ' + item.price.toFixed(2), item.qty, item.description,
+            currency + ' ' + (item.qty * item.price).toFixed(2)
+        ]);
+        const subtotal = data.items.reduce((sum, item) => sum + (item.qty * item.price), 0);
+        const taxAmount = subtotal * (data.taxRate / 100);
+        const grandTotal = subtotal + taxAmount;
+        doc.autoTable({
+            startY: 105, head: [['Price', 'Qty', 'Description', 'Total']], body: tableData,
+            theme: 'grid', headStyles: { fillColor: [37, 99, 235], textColor: 255, fontSize: 10, fontStyle: 'bold' },
+            styles: { fontSize: 10, cellPadding: 4 },
+            columnStyles: { 0: { cellWidth: 40, halign: 'right' }, 1: { cellWidth: 30, halign: 'center' }, 2: { cellWidth: 'auto' }, 3: { cellWidth: 40, halign: 'right' } },
+            margin: { left: 20, right: 20 }
+        });
+        const finalY = doc.lastAutoTable.finalY + 10;
+        doc.setFontSize(10); doc.setTextColor(80);
+        doc.text('Subtotal:', 150, finalY, { align: 'right' });
+        doc.text(currency + ' ' + subtotal.toFixed(2), 190, finalY, { align: 'right' });
+        doc.text('Tax (' + data.taxRate + '%):', 150, finalY + 6, { align: 'right' });
+        doc.text(currency + ' ' + taxAmount.toFixed(2), 190, finalY + 6, { align: 'right' });
+        doc.setFontSize(13); doc.setTextColor(37, 99, 235);
+        doc.text('TOTAL', 150, finalY + 16, { align: 'right' });
+        doc.text(currency + ' ' + grandTotal.toFixed(2), 190, finalY + 16, { align: 'right' });
+        if (data.notes) {
+            doc.setFontSize(9); doc.setTextColor(100);
+            const noteLines = doc.splitTextToSize(data.notes, 170);
+            doc.text(noteLines, 20, finalY + 32);
+        }
+        doc.setFontSize(8); doc.setTextColor(150);
+        doc.text('Generated with Invoice Generator Pro', 105, 285, { align: 'center' });
+        doc.save(data.invoiceNumber + '.pdf');
+        showToast('PDF exported! 📄');
+    } finally {
+        setTimeout(() => { isExporting = false; }, 1000);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
+function showToast(message) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(100px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 2500);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTO-LOGIN CHECK
+// ═══════════════════════════════════════════════════════════════
+if (isLoggedIn()) {
+    afterLogin();
+}
+</script>
+</body>
+</html>
